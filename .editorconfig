@@ -1,0 +1,18 @@
+# editorconfig.org
+root = false
+
+[*]
+indent_style = space
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.md]
+indent_style = space
+trim_trailing_whitespace = false
+
+# YAML 2-space indentation
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
