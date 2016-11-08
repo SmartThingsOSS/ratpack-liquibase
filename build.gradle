@@ -45,6 +45,7 @@ compileJava {
 }
 
 dependencies {
+    compile ratpack.dependency("hikari")
     compile ratpack.dependency("guice")
     compile "org.liquibase:liquibase-core:3.5.3"
     compile 'com.google.code.findbugs:jsr305:3.0.1'
@@ -53,4 +54,7 @@ dependencies {
 
     testRuntime 'cglib:cglib-nodep:3.2.4'
     testRuntime 'org.objenesis:objenesis:2.4'
+    testRuntime 'com.h2database:h2:1.4.193'
+    testRuntime 'org.slf4j:slf4j-api:1.7.21'
+    testRuntime 'ch.qos.logback:logback-classic:1.1.7'
 }
