@@ -1,17 +1,20 @@
 package smartthings.ratpack.liquibase
 
+import com.google.common.io.Resources
+import com.zaxxer.hikari.HikariConfig
+import groovy.sql.Sql
 import liquibase.Liquibase
 import liquibase.database.Database
 import liquibase.database.DatabaseConnection
-import liquibase.database.jvm.JdbcConnection
 import liquibase.exception.LiquibaseException
+import ratpack.config.ConfigData
+import ratpack.groovy.test.embed.GroovyEmbeddedApp
+import ratpack.hikari.HikariModule
 import spock.lang.Specification
 import spock.lang.Unroll
-import spock.util.mop.ConfineMetaClassChanges
 
 import javax.sql.DataSource
 
-@ConfineMetaClassChanges([Liquibase, JdbcConnection])
 class LiquibaseServiceSpec extends Specification {
 
     def "Migration not performed if autoMigrate is false"() {
@@ -87,5 +90,49 @@ class LiquibaseServiceSpec extends Specification {
         autoCommit | commitCalls
         true       | 0
         false      | 1
+    }
+
+    def "Auto migration on service startup"() {
+        expect:
+        wipeDatabase()
+        GroovyEmbeddedApp.ratpack {
+            bindings {
+                moduleConfig(LiquibaseModule.class, new LiquibaseModule.Config(autoMigrate: true, migrationFile: "migrations.xml"))
+                moduleConfig(HikariModule, new HikariConfig([
+                        driverClassName: 'org.h2.jdbcx.JdbcDataSource',
+                        username: 'sa',
+                        password: '',
+                        jdbcUrl: 'jdbc:h2:mem:test;INIT=CREATE SCHEMA IF NOT EXISTS test'
+                ]))
+            }
+            handlers {
+                get { DataSource dataSource ->
+                    Sql sql = new Sql(dataSource)
+                    render(messageColumnExists(sql) ? 'Pass' : 'Fail')
+                }
+            }
+        }.test {
+            assert getText() == 'Pass'
+        }
+    }
+
+    def "Manual CLI migration"() {
+        given:
+        wipeDatabase()
+        Sql sql = Sql.newInstance("jdbc:h2:mem:test", "sa", "", "org.h2.Driver")
+
+        when:
+        Migrate.main('sa', '', 'test.yml')
+
+        then:
+        assert messageColumnExists(sql)
+    }
+
+    private static void wipeDatabase() {
+        Sql.newInstance("jdbc:h2:mem:test", "sa", "", "org.h2.Driver").execute("DROP ALL OBJECTS DELETE FILES")
+    }
+
+    private static boolean messageColumnExists(Sql sql) {
+        return sql.firstRow("SELECT count(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ratpack-liquibase' AND COLUMN_NAME = 'MESSAGE'").getAt(0) == 1
     }
 }
