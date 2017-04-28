@@ -1,13 +1,13 @@
 package smartthings.ratpack.liquibase
 
-import com.google.common.io.Resources
 import com.zaxxer.hikari.HikariConfig
 import groovy.sql.Sql
 import liquibase.Liquibase
+import liquibase.changelog.ChangeSet
+import liquibase.changelog.DatabaseChangeLog
 import liquibase.database.Database
 import liquibase.database.DatabaseConnection
 import liquibase.exception.LiquibaseException
-import ratpack.config.ConfigData
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.hikari.HikariModule
 import spock.lang.Specification
@@ -21,14 +21,44 @@ class LiquibaseServiceSpec extends Specification {
         given:
         LiquibaseModule.Config config = new LiquibaseModule.Config(autoMigrate: false)
         DataSource dataSource = Mock()
+        DatabaseConnection connection = Mock()
+        Liquibase liquibase = Mock()
         LiquibaseService service = Spy(LiquibaseService, constructorArgs: [config, dataSource])
 
         when:
-        service.onStart(null);
+        service.onStart(null)
 
         then:
-        0 * service.migrate()
         1 * service.onStart(null)
+        1 * service.constructConnection(dataSource) >> connection
+        1 * service.constructLiquibase(config, connection) >> liquibase
+        0 * service.migrate(liquibase)
+        1 * liquibase.listUnrunChangeSets(_, _) >> []
+        1 * connection.close()
+        0 * _
+    }
+
+    def "Service fails to start if unrun migrations exist"() {
+        given:
+        LiquibaseModule.Config config = new LiquibaseModule.Config(autoMigrate: false)
+        DataSource dataSource = Mock()
+        DatabaseConnection connection = Mock()
+        Liquibase liquibase = Mock()
+        LiquibaseService service = Spy(LiquibaseService, constructorArgs: [config, dataSource])
+
+        when:
+        service.onStart(null)
+
+        then:
+        thrown(LiquibaseException)
+
+        and:
+        1 * service.onStart(null)
+        1 * service.constructConnection(dataSource) >> connection
+        1 * service.constructLiquibase(config, connection) >> liquibase
+        0 * service.migrate(liquibase)
+        1 * liquibase.listUnrunChangeSets(_, _) >> [new ChangeSet(new DatabaseChangeLog())]
+        1 * connection.close()
         0 * _
     }
 
@@ -43,17 +73,17 @@ class LiquibaseServiceSpec extends Specification {
         LiquibaseService service = Spy(LiquibaseService, constructorArgs: [config, dataSource])
 
         when:
-        service.onStart(null);
+        service.onStart(null)
 
         then:
         1 * service.onStart(null)
-        1 * service.migrate()
         1 * service.constructConnection(dataSource) >> connection
         1 * service.constructLiquibase(config, connection) >> liquibase
         1 * liquibase.update('')
         liquibase.database >> database
         1 * database.autoCommit >> autoCommit
         commitCalls * database.commit()
+        1 * liquibase.listUnrunChangeSets(_, _) >> []
         1 * connection.close()
         0 * _
 
@@ -73,16 +103,18 @@ class LiquibaseServiceSpec extends Specification {
         LiquibaseService service = Spy(LiquibaseService, constructorArgs: [config, dataSource])
 
         when:
-        service.onStart(null);
+        service.onStart(null)
 
         then:
+        thrown(LiquibaseException)
+
+        and:
         1 * service.onStart(null)
-        1 * service.migrate()
         1 * service.constructConnection(dataSource) >> connection
         1 * service.constructLiquibase(config, connection) >> liquibase
         1 * liquibase.update('') >> { throw new LiquibaseException("migration failed") }
-        0 * liquibase.database
-        1 * connection.rollback()
+        1 * liquibase.database >> database
+        1 * database.rollback()
         1 * connection.close()
         0 * _
 
@@ -100,9 +132,9 @@ class LiquibaseServiceSpec extends Specification {
                 moduleConfig(LiquibaseModule.class, new LiquibaseModule.Config(autoMigrate: true, migrationFile: "migrations.xml"))
                 moduleConfig(HikariModule, new HikariConfig([
                         driverClassName: 'org.h2.jdbcx.JdbcDataSource',
-                        username: 'sa',
-                        password: '',
-                        jdbcUrl: 'jdbc:h2:mem:test;INIT=CREATE SCHEMA IF NOT EXISTS test'
+                        username       : 'sa',
+                        password       : '',
+                        jdbcUrl        : 'jdbc:h2:mem:test;INIT=CREATE SCHEMA IF NOT EXISTS test'
                 ]))
             }
             handlers {

@@ -1,7 +1,10 @@
 package smartthings.ratpack.liquibase;
 
 import com.google.inject.Inject;
+import liquibase.Contexts;
+import liquibase.LabelExpression;
 import liquibase.Liquibase;
+import liquibase.changelog.ChangeSet;
 import liquibase.database.DatabaseConnection;
 import liquibase.database.jvm.JdbcConnection;
 import liquibase.exception.DatabaseException;
@@ -15,6 +18,7 @@ import ratpack.service.StopEvent;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
+import java.util.List;
 
 /**
  * {@link ratpack.service.Service} that performs Liquibase migrations on startup.
@@ -37,43 +41,76 @@ public class LiquibaseService implements Service {
      * requests.
      *
      * @param event meta information about the startup event
+     * @throws LiquibaseException thrown for migration failures or existence of unrun migrations
      * @throws SQLException thrown if a connection to the database cannot be established
      */
     @Override
-    public void onStart(StartEvent event) throws SQLException {
-        if (config.autoMigrate) {
-            migrate();
+    public void onStart(StartEvent event) throws LiquibaseException, SQLException {
+        DatabaseConnection connection = constructConnection(dataSource);
+        try {
+            Liquibase liquibase = constructLiquibase(config, connection);
+            if (config.autoMigrate) {
+                migrate(liquibase);
+            }
+            checkUnmigrated(liquibase);
+        } finally {
+            try {
+                connection.close();
+            } catch (DatabaseException e) {
+                logger.warn("An error occurred closing connection after migrations", e);
+            }
         }
+    }
+
+    private void checkUnmigrated(Liquibase liquibase) throws LiquibaseException {
+        List<ChangeSet> unrunChangeSets = liquibase.listUnrunChangeSets(new Contexts(), new LabelExpression());
+        unrunChangeSets.stream().forEach(changeSet -> logger.error("Found unrun change set: {}", changeSet));
+        if (!unrunChangeSets.isEmpty()) {
+            logger.error("Startup failure due to unrun change sets.");
+            throw new LiquibaseException("Service failed to start due to unrun changesets");
+        }
+        logger.info("Migrations are up to date.");
     }
 
     /**
      * Performs Liquibase migration.
      *
-     * @throws SQLException thrown in a connection to the database cannot be established
+     * @throws LiquibaseException thrown for migration failures
+     * @throws SQLException thrown if a connection to the database cannot be established
      */
-    public void migrate() throws SQLException {
+    public void migrate() throws LiquibaseException, SQLException {
         logger.info("Starting migrations for {}", config.migrationFile);
 
         DatabaseConnection connection = constructConnection(dataSource);
         try {
             Liquibase liquibase = constructLiquibase(config, connection);
+            migrate(liquibase);
+        } finally {
+            try {
+                connection.close();
+            } catch (DatabaseException e) {
+                logger.warn("An error occurred closing connection after migrations", e);
+            }
+        }
+    }
+
+    private void migrate(Liquibase liquibase) throws LiquibaseException {
+        logger.info("Starting migrations for {}", config.migrationFile);
+
+        try {
             liquibase.update(config.contexts);
 
             if (!liquibase.getDatabase().isAutoCommit()) {
                 liquibase.getDatabase().commit();
             }
         } catch (LiquibaseException any) {
-            logger.warn("An error occurred executing migrations", any);
+            logger.error("An error occurred executing migrations", any);
             try {
-                connection.rollback();
+                liquibase.getDatabase().rollback();
             } catch (DatabaseException e) {
                 logger.warn("Could not roll back migration transaction", e);
-            }
-        } finally {
-            try {
-                connection.close();
-            } catch (DatabaseException e) {
-                logger.warn("An error occurred closing connection after migrations", e);
+            } finally {
+                throw any;
             }
         }
     }
