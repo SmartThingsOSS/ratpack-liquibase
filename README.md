@@ -4,7 +4,7 @@
 ## Enabling the Ratpack Liquibase module
 1) Add ratpack Liquibase dependency to Gradle
 ```
-    compile "smartthings:ratpack-liquibase:0.1.0"
+    compile "smartthings:ratpack-liquibase:0.3.0"
     compile "org.liquibase:liquibase-core:3.5.1"
 ```
 
