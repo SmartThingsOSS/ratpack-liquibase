@@ -9,6 +9,8 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Properties;
 
 /**
  * Execute Liquibase migrations outside of Ratpack startup.
@@ -22,7 +24,9 @@ public class Migrate {
         try {
             Path path = Paths.get(args[2]);
             ConfigData configData = Files.exists(path) ? fromPath(path) : fromClasspath(args[2]);
-            HikariConfig hikariConfig = configData.get("/db", HikariConfig.class);
+            // TEMP: Workaround for https://github.com/ratpack/ratpack/issues/1270
+            Properties hikariConfigProperties = configData.get("/db", Properties.class);
+            HikariConfig hikariConfig = new HikariConfig(hikariConfigProperties);
             hikariConfig.setUsername(args[0]);
             hikariConfig.setPassword(args[1]);
             HikariDataSource dataSource = new HikariDataSource(hikariConfig);
