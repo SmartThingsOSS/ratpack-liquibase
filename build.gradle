@@ -19,7 +19,7 @@ buildscript {
 
     dependencies {
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3'
-        classpath 'com.github.ben-manes:gradle-versions-plugin:0.14.0'
+        classpath 'com.github.ben-manes:gradle-versions-plugin:0.15.0'
         classpath "gradle.plugin.io.ratpack:ratpack-gradle:${ratpackVersion}"
     }
 }
@@ -50,11 +50,11 @@ dependencies {
     compile "org.liquibase:liquibase-core:3.5.3"
     compile 'com.google.code.findbugs:annotations:3.0.1u2'
 
-    testCompile 'org.spockframework:spock-core:1.1-groovy-2.4-rc-4'
+    testCompile 'org.spockframework:spock-core:1.1-groovy-2.4'
 
     testRuntime 'cglib:cglib-nodep:3.2.5'
-    testRuntime 'org.objenesis:objenesis:2.5.1'
-    testRuntime 'com.h2database:h2:1.4.195'
+    testRuntime 'org.objenesis:objenesis:2.6'
+    testRuntime 'com.h2database:h2:1.4.196'
     testRuntime 'org.slf4j:slf4j-api:1.7.25'
     testRuntime 'ch.qos.logback:logback-classic:1.2.3'
 }
