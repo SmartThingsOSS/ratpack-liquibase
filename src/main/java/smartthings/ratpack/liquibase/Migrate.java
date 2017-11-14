@@ -35,6 +35,7 @@ public class Migrate {
                 new LiquibaseService(liquibaseConfig, dataSource).migrate();
             } finally {
                 dataSource.close();
+                System.exit(0);
             }
         } catch (Exception ex) {
             System.err.println("Migration error:");
