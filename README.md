@@ -1,6 +1,7 @@
 [![Circle CI](https://circleci.com/gh/SmartThingsOSS/ratpack-liquibase.svg?style=svg)](https://circleci.com/gh/SmartThingsOSS/ratpack-liquibase) [![codecov.io](https://codecov.io/github/SmartThingsOSS/ratpack-liquibase/coverage.svg?branch=master)](https://codecov.io/github/SmartThingsOSS/ratpack-liquibase?branch=master) [ ![Download](https://api.bintray.com/packages/smartthingsoss/maven/smartthings.ratpack-liquibase/images/download.svg) ](https://bintray.com/smartthingsoss/maven/smartthings.ratpack-liquibase/_latestVersion)
 # Ratpack Liquibase
 
+
 ## Enabling the Ratpack Liquibase module
 1) Add ratpack Liquibase dependency to Gradle
 ```
